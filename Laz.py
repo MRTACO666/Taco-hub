@@ -2,6 +2,8 @@ import random
 import time
 import requests
 from colorama import *
+import json
+import os
 
 init()
 
@@ -27,18 +29,41 @@ last_update_id = 0
 CHANNEL_ID = "@Rako_laz"  # Замените на username вашего канала
 CHANNEL_LINK = "https://t.me/Rako_laz"  # Замените на ссылку вашего канала
 
-# База данных (в памяти)
-user_data = {}
+# Файл для хранения данных
+DATA_FILE = "user_data.json"
+
+# Загрузка данных из файла при старте
+def load_data():
+    if os.path.exists(DATA_FILE):
+        with open(DATA_FILE, "r") as f:
+            try:
+                return json.load(f)
+            except json.JSONDecodeError:
+                return {}
+    return {}
+
+# Сохранение данных в файл
+def save_data(data):
+    with open(DATA_FILE, "w") as f:
+        json.dump(data, f)
+
+# База данных (загружается из файла)
+user_data = load_data()
 
 # Варианты исходов
 positive = [
-    ("Ты залез в бб: +1", 1),
+    ("Ты залез в бб:", 1),
     ("Ты залез в теплотрассу:", 1),
     ("Ты залез в зб завод:", 2),
     ("Ты залез в кабельник:", 3),
     ("Ты нашел ящики гп-5:", 5),
     ("Ты нашел ящики гп-7:", 10),
     ("Ты нашел ящики хомяков:", 10),
+    ("Руфанул мск сити:", 20),
+    ("Сбежал от чопа:", 10),
+    ("Нашел пк в зб:", 10),
+    ("Залез в дельту:", 10),
+    ("Залез в мясокомбинат:", 2),
     ("Ты пролез в райеник:", 15)
 ]
 
@@ -49,7 +74,12 @@ negative = [
     ("Тебя забрали в ментовку:", -5),
     ("Ты потерял все гп-5:", -4),
     ("Ты потерял фонарик:", -2),
+    ("Сжег высел:", -10),
+    ("Мама наругала за руфы:", -15),
+    ("Сорвался с руфа:", -10),
+    ("Порезался на руфе:", -10),
     ("Тебя закрыли в бб:", -10),
+    ("Тебя унесло течение в левневке:", -20),
     ("Ты задохнулся в теплотрассе:", -20)
 ]
 
@@ -72,7 +102,7 @@ def is_user_subscribed(user_id):
     return response.get("result", {}).get("status") in ["member", "administrator", "creator"]
 
 def handle_updates(updates):
-    global last_update_id
+    global last_update_id, user_data
     
     for update in updates:
         last_update_id = update["update_id"]
@@ -92,11 +122,11 @@ def handle_updates(updates):
         
         if command == "/start":
             welcome_text = (
-                "Привет! Это игра в Лаз.\n\n"
+                "Привет! Это игра в Раколаз\n\n"
                 "Доступные команды:\n"
-                "/Laz - Попытать удачу (можно использовать раз в час)\n"
-                "/Lazs - Посмотреть свой счет\n\n"
-                "Чтобы играть, нужно подписаться на наш канал!"
+                "/Laz - начатт лазать\n"
+                "/Lazs - посмотреть свой счет\n\n"
+                "ъ?"
             )
             
             # Проверяем подписку
@@ -119,13 +149,13 @@ def handle_updates(updates):
                 
             current_time = time.time()
             
-            if user_id not in user_data:
-                user_data[user_id] = {
+            if str(user_id) not in user_data:
+                user_data[str(user_id)] = {
                     "laz_count": 0,
                     "last_laz_time": 0
                 }
             
-            last_used = user_data[user_id].get("last_laz_time", 0)
+            last_used = user_data[str(user_id)].get("last_laz_time", 0)
             if current_time - last_used < 3600:
                 remaining_time = 3600 - int(current_time - last_used)
                 minutes = remaining_time // 60
@@ -138,15 +168,16 @@ def handle_updates(updates):
             else:
                 outcome, points = random.choice(negative)
             
-            user_data[user_id]["laz_count"] += points
-            user_data[user_id]["last_laz_time"] = current_time
+            user_data[str(user_id)]["laz_count"] += points
+            user_data[str(user_id)]["last_laz_time"] = current_time
+            save_data(user_data)  # Сохраняем данные после изменения
             
             response = f"{outcome}\n"
             if points > 0:
                 response += f"+{points} к лазам!\n"
             else:
                 response += f"{points} к лазам...\n"
-            response += f"Текущий счет: {user_data[user_id]['laz_count']}"
+            response += f"Текущий счет: {user_data[str(user_id)]['laz_count']}"
             
             send_message(chat_id, response)
             
@@ -156,34 +187,36 @@ def handle_updates(updates):
                 send_message(chat_id, f"Сначала подпишись на канал: {CHANNEL_LINK}")
                 continue
                 
-            if user_id in user_data:
-                send_message(chat_id, f"Твой счет: {user_data[user_id]['laz_count']}")
+            if str(user_id) in user_data:
+                send_message(chat_id, f"Твой счет: {user_data[str(user_id)]['laz_count']}")
             else:
                 send_message(chat_id, "Используй /Laz чтобы начать!")
                 
-        # Админ-команды (остаются без изменений)
+        # Админ-команды
         elif command == "/loxd":
             try:
                 password = text.split()[1]
                 if password == "Rassa_12":
                     user_id = message["from"]["id"]
-                    user_data[user_id] = {"laz_count": 0, "is_admin": True}
+                    user_data[str(user_id)] = {"laz_count": 0, "is_admin": True}
+                    save_data(user_data)  # Сохраняем данные после изменения
                     send_message(chat_id, "Админ-панель активирована!\nИспользуй /set_laz <число>")
                 else:
                     send_message(chat_id, "Неверный пароль!")
             except IndexError:
-                send_message(chat_id, "Используй: /LoxD Rassa_12")
+                send_message(chat_id, "Используй: /LoxD пароль")
                 
         elif command == "/set_laz":
             user_id = message["from"]["id"]
-            if user_id in user_data and user_data[user_id].get("is_admin"):
+            if str(user_id) in user_data and user_data[str(user_id)].get("is_admin"):
                 try:
                     new_value = text.split()[1]
                     try:
-                        user_data[user_id]["laz_count"] = int(new_value)
+                        user_data[str(user_id)]["laz_count"] = int(new_value)
                     except ValueError:
-                        user_data[user_id]["laz_count"] = new_value
-                    send_message(chat_id, f"Счет изменен: {user_data[user_id]['laz_count']}")
+                        user_data[str(user_id)]["laz_count"] = new_value
+                    save_data(user_data)  # Сохраняем данные после изменения
+                    send_message(chat_id, f"Счет изменен: {user_data[str(user_id)]['laz_count']}")
                 except IndexError:
                     send_message(chat_id, "Используй: /set_laz <значение>")
             else:
@@ -202,5 +235,4 @@ def main():
             time.sleep(5)
 
 if __name__ == "__main__":
-    import json
     main()
