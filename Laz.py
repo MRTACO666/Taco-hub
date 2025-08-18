@@ -32,6 +32,9 @@ CHANNEL_LINK = "https://t.me/Rako_laz"  # Замените на ссылку в�
 # Файл для хранения данных
 DATA_FILE = "user_data.json"
 
+# Таймаут между лазами в секундах (10 минут)
+LAZ_TIMEOUT = 600  # Было 3600 (1 час), теперь 600 (10 минут)
+
 # Загрузка данных из файла при старте
 def load_data():
     if os.path.exists(DATA_FILE):
@@ -156,8 +159,8 @@ def handle_updates(updates):
                 }
             
             last_used = user_data[str(user_id)].get("last_laz_time", 0)
-            if current_time - last_used < 360:
-                remaining_time = 360 - int(current_time - last_used)
+            if current_time - last_used < LAZ_TIMEOUT:  # Используем новую константу
+                remaining_time = LAZ_TIMEOUT - int(current_time - last_used)
                 minutes = remaining_time // 60
                 seconds = remaining_time % 60
                 send_message(chat_id, f"Подожди еще {minutes} минут {seconds} секунд перед следующим использованием!")
