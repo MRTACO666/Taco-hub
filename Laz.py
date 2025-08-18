@@ -156,8 +156,8 @@ def handle_updates(updates):
                 }
             
             last_used = user_data[str(user_id)].get("last_laz_time", 0)
-            if current_time - last_used < 3600:
-                remaining_time = 3600 - int(current_time - last_used)
+            if current_time - last_used < 360:
+                remaining_time = 360 - int(current_time - last_used)
                 minutes = remaining_time // 60
                 seconds = remaining_time % 60
                 send_message(chat_id, f"Подожди еще {minutes} минут {seconds} секунд перед следующим использованием!")
